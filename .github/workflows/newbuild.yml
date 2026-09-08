@@ -190,10 +190,9 @@ jobs:
             echo "🛠️ Setting up KernelSU-Next..."
             curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/stable/kernel/setup.sh" | bash -s stable
             cd KernelSU-Next
-            KSU_VERSION=$(expr $(curl -sI "https://api.github.com/repos/KernelSU-Next/KernelSU-Next/commits?sha=stable&per_page=1" | grep -i "link:" | sed -n 's/.*page=\([0-9]*\)>; rel="last".*/\1/p') "+" 30000)
+            KSU_VERSION=$(expr $(git rev-list --count HEAD) + 10200)
             echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
             echo "ksuver=$KSU_VERSION" >> $GITHUB_OUTPUT
-            sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
             echo "✅ KernelSU-Next $(git rev-parse --short HEAD) (ver $KSUVER)"
           else
             echo "❌ Unrecognized variant: ${{ github.event.inputs.kernelsu_variant }}"
