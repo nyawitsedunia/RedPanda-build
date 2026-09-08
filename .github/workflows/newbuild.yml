@@ -80,7 +80,7 @@ jobs:
           sudo swapon /mnt/swap_lto
           echo "── swap after ──"; free -h
           
-      - name: Clone kernel source
+      - name: ⬇️ Clone kernel source
         run: |
           git clone --depth=1 "$KERNEL_REPO" kernel_workspace
           cd kernel_workspace
@@ -99,26 +99,26 @@ jobs:
           echo "LDCACHE_DIR=$GITHUB_WORKSPACE/ldcache_${{ env.KERNEL_FULL_VERSION }}" >> $GITHUB_ENV
           mkdir -p $GITHUB_WORKSPACE/ldcache_${{ env.KERNEL_FULL_VERSION }}
 
-      - name: Restore APT Cache
+      - name: 💾 Restore APT Cache
         id: apt-cache
         uses: actions/cache@v6
         with:
           path: ~/.apt-pkg-cache
           key: apt-cache-${{ runner.os }}-${{ env.KERNEL_VER }}
 
-      - name: Install Dependencies
+      - name: 📦 Install Dependencies
         run: |
           export APT_PACKAGES="python3 git curl ccache libelf-dev build-essential flex bison libssl-dev libncurses-dev liblz4-tool zlib1g-dev libxml2-utils rsync unzip gawk dos2unix kmod libdw-dev elfutils dwarves"
           bash "$GITHUB_WORKSPACE/scripts/cache_apt_pkgs.sh" ~/.apt-pkg-cache
           
-      - name: Cache Clang toolchain
+      - name: 💾 Cache Clang toolchain
         id: clang-cache
         uses: actions/cache@v6
         with:
           path: toolchains/clang
           key: clang-${{ github.event.inputs.clang_choice }}
 
-      - name: Download & Setup Clang
+      - name: ⬇️ Download & Setup Clang
         if: steps.clang-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p toolchains/clang && cd toolchains/clang
@@ -126,7 +126,7 @@ jobs:
           chmod +x antman
           ./antman -S
 
-      - name: Restore Cache
+      - name: 💾 Restore Cache
         id: restore-ccache
         uses: actions/cache/restore@v6
         with:
@@ -135,7 +135,7 @@ jobs:
           restore-keys: |
             ccache-${{ runner.os }}-${{ github.event.inputs.kernelsu_variant }}-${{ github.event.inputs.clang_choice }}-
 
-      - name: Restore ThinLTO Cache
+      - name: 💾 Restore ThinLTO Cache
         id: restore-thinlto
         uses: actions/cache/restore@v6
         with:
@@ -144,7 +144,7 @@ jobs:
           restore-keys: |
             thinlto-cache-${{ runner.os }}-
             
-      - name: Initialize Ccache
+      - name: ⚙️ Initialize Ccache
         run: |
           INIT_FLAG="${{ env.CCACHE_DIR }}/.ccache_initialized"
           if command -v ccache >/dev/null 2>&1; then
@@ -178,7 +178,7 @@ jobs:
         working-directory: kernel_workspace
         run: |
           if [ "${{ github.event.inputs.kernelsu_variant }}" = "ReSukiSU" ]; then
-            echo "🔧 Menggunakan ReSukiSU"
+            echo "🛠️ Setting up ReSukiSU..."
             curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s main
             cd KernelSU
             KSU_VERSION_COUNT=$(git rev-list --count HEAD)
@@ -187,9 +187,9 @@ jobs:
             echo "✅ ReSukiSU $(git rev-parse --short HEAD) (ver $KSUVER)"
 
           elif [ "${{ github.event.inputs.kernelsu_variant }}" = "KernelSU-Next" ]; then
-            echo "🔧 Menggunakan KernelSU-Next"
+            echo "🛠️ Setting up KernelSU-Next..."
             curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/stable/kernel/setup.sh" | bash -s stable
-            cd KernelSU
+            cd KernelSU-Next
             KSU_VERSION_COUNT=$(git rev-list --count HEAD)
             export KSUVER=$(expr $KSU_VERSION_COUNT + 10200)
             echo "KSUVER=$KSUVER" >> $GITHUB_ENV
@@ -199,16 +199,6 @@ jobs:
             echo "❌ Unrecognized variant: ${{ github.event.inputs.kernelsu_variant }}"
             exit 1
           fi
-          
-      - name: ⚡ Setup KernelSU
-        working-directory: kernel_workspace
-        run: |
-          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s main
-          cd KernelSU
-          KSU_VERSION_COUNT=$(git rev-list --count HEAD)
-          export KSUVER=$(expr $KSU_VERSION_COUNT + 30700)
-          echo "KSUVER=$KSUVER" >> $GITHUB_ENV
-          echo "✅ ReSukiSU $(git rev-parse --short HEAD) (ver $KSUVER)"
 
       - name: 🔧 Setup Patches (SUSFS)
         working-directory: kernel_workspace
