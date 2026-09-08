@@ -1,4 +1,4 @@
-name: Build RedPanda GKI Kernel new
+name: New build
 
 on:
   workflow_dispatch:
@@ -322,41 +322,6 @@ jobs:
             set_config CONFIG_CRYPTO_LZ4KD y
             set_config CONFIG_ZRAM_WRITEBACK y
             set_config CONFIG_ZRAM_MEMORY_TRACKING y
-          fi
-
-          if [ "${{ github.event.inputs.netfilter }}" = "true" ]; then
-            set_config CONFIG_BPF_STREAM_PARSER y
-            set_config CONFIG_IP_SET y
-            set_config CONFIG_IP_SET_MAX 65534
-            set_config CONFIG_IP_SET_BITMAP_IP y
-            set_config CONFIG_IP_SET_BITMAP_IPMAC y
-            set_config CONFIG_IP_SET_BITMAP_PORT y
-            set_config CONFIG_IP_SET_HASH_IP y
-            set_config CONFIG_IP_SET_HASH_IPMARK y
-            set_config CONFIG_IP_SET_HASH_IPPORT y
-            set_config CONFIG_IP_SET_HASH_IPPORTIP y
-            set_config CONFIG_IP_SET_HASH_IPPORTNET y
-            set_config CONFIG_IP_SET_HASH_IPMAC y
-            set_config CONFIG_IP_SET_HASH_MAC y
-            set_config CONFIG_IP_SET_HASH_NETPORTNET y
-            set_config CONFIG_IP_SET_HASH_NET y
-            set_config CONFIG_IP_SET_HASH_NETNET y
-            set_config CONFIG_IP_SET_HASH_NETPORT y
-            set_config CONFIG_IP_SET_HASH_NETIFACE y
-            set_config CONFIG_IP_SET_LIST_SET y
-            set_config CONFIG_NETFILTER_XT_MATCH_ADDRTYPE y
-            set_config CONFIG_NETFILTER_XT_SET y
-            set_config CONFIG_IP6_NF_NAT y
-            set_config CONFIG_IP6_NF_TARGET_MASQUERADE y
-
-            set_config CONFIG_NETFILTER_XT_TARGET_HL y
-            set_config CONFIG_IP_NF_TARGET_TTL y
-            set_config CONFIG_IP6_NF_TARGET_HL y
-            set_config CONFIG_NETFILTER_XT_MATCH_HL y
-            set_config CONFIG_IP_NF_MATCH_TTL y
-            set_config CONFIG_IP6_NF_MATCH_HL y
-            set_config CONFIG_IP_NF_MANGLE y
-            set_config CONFIG_IP6_NF_MANGLE y
           fi
           
           sed -i 's/check_defconfig//' "$KERNEL_ROOT/build.config.gki" 2>/dev/null || true
