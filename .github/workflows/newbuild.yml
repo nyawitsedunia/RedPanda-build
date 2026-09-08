@@ -184,7 +184,7 @@ jobs:
             KSU_VERSION=$(expr $(git rev-list --count HEAD) + 30700 2>/dev/null || echo 114514)
             echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
             echo "ksuver=$KSU_VERSION" >> $GITHUB_OUTPUT
-            echo "✅ ReSukiSU $(git rev-parse --short HEAD) (ver $KSUVER)"
+            echo "✅ ReSukiSU $(git rev-parse --short HEAD) (ver $KSU_VERSION)"
 
           elif [ "${{ github.event.inputs.kernelsu_variant }}" = "KernelSU-Next" ]; then
             echo "🛠️ Setting up KernelSU-Next..."
@@ -193,7 +193,7 @@ jobs:
             KSU_VERSION=$(expr $(git rev-list --count HEAD) + 10200)
             echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
             echo "ksuver=$KSU_VERSION" >> $GITHUB_OUTPUT
-            echo "✅ KernelSU-Next $(git rev-parse --short HEAD) (ver $KSUVER)"
+            echo "✅ KernelSU-Next $(git rev-parse --short HEAD) (ver $KSU_VERSION)"
           else
             echo "❌ Unrecognized variant: ${{ github.event.inputs.kernelsu_variant }}"
             exit 1
