@@ -42,11 +42,6 @@ on:
         required: true
         default: true
         type: boolean
-      ccm:
-        description: "Enable network congestion control and management mechanism (BBRv1+BBRv3+ECN+FQ_CODEL)"
-        required: true
-        default: true
-        type: boolean
       github_release:
         description: 'Create GitHub Release'
         required: false
@@ -228,37 +223,6 @@ jobs:
             echo "::warning::BORE scheduler patch not found at $BORE_PATCH — skipping"
           fi
 
-      - name: Apply BBRv3
-        if: ${{ github.event.inputs.ccm == 'true' }}
-        working-directory: kernel_workspace
-        run: |
-          BBRV3_PATCH="$GITHUB_WORKSPACE/patches/0001-net-tcp-backport-BBRv3-to-android15-6.6.patch"
-          if [ -f "$BBRV3_PATCH" ]; then
-            patch -p1 -F 3 < "$BBRV3_PATCH"
-            echo "✅ BBRv3 patch applied"
-          else
-            echo "::warning::BBRv3 patch not found at $BBRV3_PATCH — skipping"
-          fi
-
-      - name: Configure Baseband-Guard
-        if: ${{ github.event.inputs.bbg == 'true' }}
-        working-directory: kernel_workspace
-        run: |
-          curl -LSs https://raw.githubusercontent.com/vc-teahouse/Baseband-guard/main/setup.sh | bash
-
-          DEFCONFIG="./arch/arm64/configs/$KERNEL_DEFCONFIG"
-          if grep -q '^CONFIG_LSM=' "$DEFCONFIG"; then
-            if ! grep '^CONFIG_LSM=' "$DEFCONFIG" | grep -q 'baseband_guard'; then
-              sed -i '/^CONFIG_LSM=/ s/selinux/selinux,baseband_guard/' "$DEFCONFIG"
-              echo "✅ Added baseband_guard to CONFIG_LSM in defconfig"
-            else
-              echo "✅ baseband_guard already in CONFIG_LSM"
-            fi
-          else
-            sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/selinux/selinux,baseband_guard/ } }' ./security/Kconfig
-            echo "✅ CONFIG_LSM not in defconfig, patched Kconfig default instead"
-          fi
-
       - name: Configure ZRAM LZ4 + LZ4K/LZ4KD
         if: ${{ github.event.inputs.zram == 'true' }}
         working-directory: kernel_workspace
@@ -342,20 +306,6 @@ jobs:
             set_config CONFIG_CRYPTO_LZ4KD y
             set_config CONFIG_ZRAM_WRITEBACK y
             set_config CONFIG_ZRAM_MEMORY_TRACKING y
-          fi
-          
-          if [ "${{ github.event.inputs.ccm }}" = "true" ]; then
-            set_config CONFIG_TCP_CONG_ADVANCED y
-            set_config CONFIG_TCP_CONG_BBR y
-            set_config CONFIG_TCP_CONG_BBR3 y
-            set_config CONFIG_TCP_CONG_BIC n
-            set_config CONFIG_TCP_CONG_WESTWOOD n
-            set_config CONFIG_TCP_CONG_HTCP n
-            set_config CONFIG_IP_ECN y
-            set_config CONFIG_TCP_ECN y
-            set_config CONFIG_IPV6_ECN y
-            set_config CONFIG_IP_NF_TARGET_ECN y
-            set_config CONFIG_DEFAULT_TCP_CONG=bbr
           fi
 
           if [ "${{ github.event.inputs.netfilter }}" = "true" ]; then
