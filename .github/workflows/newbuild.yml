@@ -181,20 +181,20 @@ jobs:
             echo "🛠️ Setting up ReSukiSU..."
             curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s main
             cd KernelSU
-            KSU_VERSION_COUNT=$(git rev-list --count HEAD)
-            export KSUVER=$(expr $KSU_VERSION_COUNT + 30700)
-            echo "KSUVER=$KSUVER" >> $GITHUB_ENV
+            KSU_VERSION=$(expr $(git rev-list --count HEAD) + 30700 2>/dev/null || echo 114514)
+            echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+            echo "ksuver=$KSU_VERSION" >> $GITHUB_OUTPUT
             echo "✅ ReSukiSU $(git rev-parse --short HEAD) (ver $KSUVER)"
 
           elif [ "${{ github.event.inputs.kernelsu_variant }}" = "KernelSU-Next" ]; then
             echo "🛠️ Setting up KernelSU-Next..."
             curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/stable/kernel/setup.sh" | bash -s stable
             cd KernelSU-Next
-            KSU_VERSION_COUNT=$(git rev-list --count HEAD)
-            export KSUVER=$(expr $KSU_VERSION_COUNT + 10200)
-            echo "KSUVER=$KSUVER" >> $GITHUB_ENV
-            echo "✅ KernelSU-Next $(git rev-parse --short HEAD) (ver $KSUVER)"
-
+            KSU_VERSION=$(expr $(curl -sI "https://api.github.com/repos/KernelSU-Next/KernelSU-Next/commits?sha=dev&per_page=1" | grep -i "link:" | sed -n 's/.*page=\([0-9]*\)>; rel="last".*/\1/p') "+" 30000)
+            echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+            echo "ksuver=$KSU_VERSION" >> $GITHUB_OUTPUT
+            sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
+            echo "✅ KernelSU-Next (ver $KSUVER)"
           else
             echo "❌ Unrecognized variant: ${{ github.event.inputs.kernelsu_variant }}"
             exit 1
