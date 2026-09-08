@@ -10,6 +10,7 @@ on:
         type: choice
         options:
           - ReSukiSU
+          - KernelSU-Next
       clang_choice:
         description: "Select Clang toolchain"
         required: true
@@ -172,8 +173,34 @@ jobs:
 
           echo "Updating atime to achieve cache eviction..."
           find "${{ env.CCACHE_DIR }}" -type f -exec touch -t $(date -d "1 day ago" +%Y%m%d%H%M) {} + || true
+
+      - name: ⚡ Setup KernelSU
+        working-directory: kernel_workspace
+        run: |
+          if [ "${{ github.event.inputs.kernelsu_variant }}" = "ReSukiSU" ]; then
+            echo "🔧 Menggunakan ReSukiSU"
+            curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s main
+            cd KernelSU
+            KSU_VERSION_COUNT=$(git rev-list --count HEAD)
+            export KSUVER=$(expr $KSU_VERSION_COUNT + 30700)
+            echo "KSUVER=$KSUVER" >> $GITHUB_ENV
+            echo "✅ ReSukiSU $(git rev-parse --short HEAD) (ver $KSUVER)"
+
+          elif [ "${{ github.event.inputs.kernelsu_variant }}" = "KernelSU-Next" ]; then
+            echo "🔧 Menggunakan KernelSU-Next"
+            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/stable/kernel/setup.sh" | bash -s stable
+            cd KernelSU
+            KSU_VERSION_COUNT=$(git rev-list --count HEAD)
+            export KSUVER=$(expr $KSU_VERSION_COUNT + 10200)
+            echo "KSUVER=$KSUVER" >> $GITHUB_ENV
+            echo "✅ KernelSU-Next $(git rev-parse --short HEAD) (ver $KSUVER)"
+
+          else
+            echo "❌ Unrecognized variant: ${{ github.event.inputs.kernelsu_variant }}"
+            exit 1
+          fi
           
-      - name: ⚡ Setup ReSukiSU
+      - name: ⚡ Setup KernelSU
         working-directory: kernel_workspace
         run: |
           curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s main
@@ -409,11 +436,12 @@ jobs:
           git clone --depth=1 https://github.com/Artecxyz/AnyKernel3.git
           rm -rf ./AnyKernel3/.git
           cd AnyKernel3
-          cp $GITHUB_WORKSPACE/kout/arch/arm64/boot/Image ./Image.gz
-          if [ ! -f ./Image.gz ]; then
+          cp $GITHUB_WORKSPACE/kout/arch/arm64/boot/Image ./Image
+          if [ ! -f ./Image ]; then
             echo "Kernel Image not found, build may have failed."
             exit 1
           fi
+          gzip -n -f -9 ./Image
           ZIP_NAME=RedPanda-GKI-${{ github.event.inputs.kernelsu_variant }}-$(date +%Y%m%d-%H%M).zip
           zip -r9 "../$ZIP_NAME" ./*
 
