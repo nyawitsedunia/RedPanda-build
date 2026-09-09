@@ -28,11 +28,6 @@ on:
         required: true
         default: true
         type: boolean
-      adios:
-        description: "Enable ADIOS IO Scheduler (Improves IO read/write performance)"
-        required: true
-        default: true
-        type: boolean
       zram:
         description: "Upgrade LZ4 to the latest upstream"
         required: true
@@ -300,10 +295,6 @@ jobs:
           set_config CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG y
           set_config CONFIG_KSU_SUSFS_OPEN_REDIRECT y
           set_config CONFIG_KSU_SUSFS_SUS_MAP y
-
-          if [ "${{ github.event.inputs.adios }}" = "true" ]; then
-            set_config CONFIG_MQ_IOSCHED_DEFAULT_ADIOS y
-          fi
 
           if [ "${{ github.event.inputs.bore }}" = "true" ]; then
             set_config CONFIG_SCHED_BORE y
