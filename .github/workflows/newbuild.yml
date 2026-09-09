@@ -38,11 +38,6 @@ on:
         required: true
         default: true
         type: boolean
-      netfilter:
-        description: "Enable network feature extensions (NETFILTER)"
-        required: true
-        default: true
-        type: boolean
       github_release:
         description: 'Create GitHub Release'
         required: false
