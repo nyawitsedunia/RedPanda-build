@@ -412,3 +412,17 @@ jobs:
         with:
           path: ${{ env.LDCACHE_DIR }}
           key: thinlto-cache-${{ runner.os }}-${{ env.KERNEL_FULL_VERSION }}
+
+      - name: Kirim File dan Teks ke Topik Telegram
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
+        run: |
+          ZIP_PATH=$(ls kernel_workspace/RedPanda-GKI-*.zip | head -n 1)
+          curl -F chat_id="$TELEGRAM_CHAT_ID" \
+               -F message_thread_id="$TELEGRAM_TOPIC_ID" \
+               -F document=@"$ZIP_PATH" \
+               -F caption="🚀 *Build Berhasil!* Berikut adalah file laporan terbaru dari repository ${{ github.repository }}." \
+               -F parse_mode="Markdown" \
+               https://telegram.org
