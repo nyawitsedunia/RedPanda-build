@@ -95,7 +95,10 @@ jobs:
           # Simpan hasil sebagai full .config (semua opsi ditulis lengkap,
           # termasuk yang nilainya sama dengan default kernel)
           OUTPUT_NAME="${{ github.event.inputs.output_name }}"
-          cp out/.config "out/${OUTPUT_NAME}"
+
+          # Buang header "Automatically generated file..." sehingga file
+          # hasil langsung mulai dari section "# General setup"
+          sed -n '/^# General setup/,$p' out/.config > "out/${OUTPUT_NAME}"
 
           echo "=== Info hasil regenerate ==="
           echo "Baris defconfig awal : $(wc -l < "$DEFCONFIG")"
