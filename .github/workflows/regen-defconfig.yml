@@ -77,7 +77,7 @@ jobs:
 
           $MAKE "$DEFCONFIG_NAME"
           OUTPUT_NAME="${{ github.event.inputs.output_name }}"
-          grep -v '^#' out/.config | grep -v '^[[:space:]]*$' > "out/${OUTPUT_NAME}"
+          cp out/.config "out/${OUTPUT_NAME}"
 
           echo "=== Info hasil regenerate ==="
           echo "Baris defconfig awal : $(wc -l < "$DEFCONFIG")"
