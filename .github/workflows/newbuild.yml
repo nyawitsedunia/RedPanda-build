@@ -18,16 +18,6 @@ on:
         type: choice
         options:
           - Neutron
-      # reflex:
-      #   description: "Enable Reflex CPUFreq Governor (Hybrid interactive-schedutil CPU governor)"
-      #   required: true
-      #   default: true
-      #   type: boolean
-      bore:
-        description: "Enable BORE Scheduler (Burst-Oriented Response Enhancer, off by default)"
-        required: true
-        default: true
-        type: boolean
       zram:
         description: "Upgrade LZ4 to the latest upstream"
         required: true
@@ -205,30 +195,6 @@ jobs:
             echo "⚠️  SUS_MAP guard not found — patch may need adjustment"
           fi
 
-      # - name: Apply Reflex CPUFreq Governor
-      #   if: ${{ github.event.inputs.reflex == 'true' }}
-      #   working-directory: kernel_workspace
-      #   run: |
-      #     REFLEX_PATCH="$GITHUB_WORKSPACE/patches/reflex.patch"
-      #     if [ -f "$REFLEX_PATCH" ]; then
-      #       patch -p1 -F 3 < "$REFLEX_PATCH"
-      #       echo "✅ Reflex CPUFreq Governor applied"
-      #     else
-      #       echo "::warning::Reflex CPUFreq Governor patch not found at $REFLEX_PATCH — skipping"
-      #     fi
-          
-      - name: Apply BORE Scheduler
-        if: ${{ github.event.inputs.bore == 'true' }}
-        working-directory: kernel_workspace
-        run: |
-          BORE_PATCH="$GITHUB_WORKSPACE/patches/bore.patch"
-          if [ -f "$BORE_PATCH" ]; then
-            patch -p1 -F 3 < "$BORE_PATCH"
-            echo "✅ BORE scheduler applied"
-          else
-            echo "::warning::BORE scheduler patch not found at $BORE_PATCH — skipping"
-          fi
-
       - name: Configure ZRAM LZ4 + LZ4K/LZ4KD
         if: ${{ github.event.inputs.zram == 'true' }}
         working-directory: kernel_workspace
@@ -295,10 +261,6 @@ jobs:
           set_config CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG y
           set_config CONFIG_KSU_SUSFS_OPEN_REDIRECT y
           set_config CONFIG_KSU_SUSFS_SUS_MAP y
-
-          if [ "${{ github.event.inputs.bore }}" = "true" ]; then
-            set_config CONFIG_SCHED_BORE y
-          fi
           
           if [ "${{ github.event.inputs.zram }}" = "true" ]; then
             set_config CONFIG_ZSMALLOC y
