@@ -17,6 +17,15 @@ on:
         type: choice
         options:
           - Neutron
+      lto_type:
+        description: 'LTO Optimization (none = fast compile, thin = default, full = slow)'
+        required: true
+        type: choice
+        default: 'thin'
+        options:
+          - 'none'
+          - 'thin'
+          - 'full'
       lrng_enable:
         description: 'Enable LRNG v59 (better entropy for crypto/gaming)'
         required: true
@@ -196,7 +205,7 @@ jobs:
           else
             echo "⚠️  SUS_MAP guard not found — patch may need adjustment"
           fi
-
+          
       - name: Enable LRNG v59
         if: inputs.lrng_enable
         working-directory: kernel_workspace
@@ -204,7 +213,7 @@ jobs:
           echo "Enabling LRNG v59..."
           git clone --depth=1 https://github.com/smuellerDD/lrng.git /tmp/lrng_src
           cp -r /tmp/lrng_src/drivers/char/lrng/* drivers/char/lrng/
-          cat >> arch/arm64/configs/redpanda_defconfig << 'EOF'
+          cat >> arch/arm64/configs/$KERNEL_DEFCONFIG << 'EOF'
           CONFIG_LRNG=y
           CONFIG_LRNG_SHA256=y
           CONFIG_LRNG_COLLECTION_SIZE=1024
@@ -245,9 +254,14 @@ jobs:
           
           set_config CONFIG_HEADERS_INSTALL n
           set_config CONFIG_LD_DEAD_CODE_DATA_ELIMINATION y
-          
-          sed -i '/^CONFIG_LTO_NONE=y/{ s/^/# /; s/=y$/ is not set/; }' "$DEFCONFIG"
-          set_config CONFIG_LTO_CLANG_THIN y
+
+          if [[ "${{ github.event.inputs.lto_type }}" == "full" ]]; then
+            sed -i '/^CONFIG_LTO_NONE=y/{ s/^/# /; s/=y$/ is not set/; }' "$DEFCONFIG"
+            set_config CONFIG_LTO_CLANG_FULL y
+          else
+            sed -i '/^CONFIG_LTO_NONE=y/{ s/^/# /; s/=y$/ is not set/; }' "$DEFCONFIG"
+            set_config CONFIG_LTO_CLANG_THIN y
+          fi
           
           set_config CONFIG_KSU_SUSFS y
           set_config CONFIG_KSU_SUSFS_SUS_PATH y
