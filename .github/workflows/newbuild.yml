@@ -199,7 +199,7 @@ jobs:
 
       - name: Enable LRNG v59
         if: inputs.lrng_enable
-        working-directory: kernel_workspace/common
+        working-directory: kernel_workspace
         run: |
           echo "Enabling LRNG v59..."
           git clone --depth=1 https://github.com/smuellerDD/lrng.git /tmp/lrng_src
