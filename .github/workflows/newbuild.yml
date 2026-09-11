@@ -10,6 +10,7 @@ on:
         type: choice
         options:
           - ReSukiSU
+          - KernelSU-Next
       clang_choice:
         description: "Select Clang toolchain"
         required: true
@@ -190,16 +191,16 @@ jobs:
             exit 1
           fi
 
-      - name: Add KernelSU-Next signature definitions
-        working-directory: kernel_workspace/KernelSU
-        run: |
-          KSUN_SIGN_PATCH="$GITHUB_WORKSPACE/patches/ksun-sign.patch"
-          if [ -f "$KSUN_SIGN_PATCH" ]; then
-            patch -p1 -F 3 < "$KSUN_SIGN_PATCH"
-            echo "✅ KernelSU-Next Sign patch applied"
-          else
-            echo "::warning::KernelSU-Next Sign patch not found at $KSUN_SIGN_PATCH — skipping"
-          fi
+      # - name: Add KernelSU-Next signature definitions
+      #   working-directory: kernel_workspace/KernelSU
+      #   run: |
+      #     KSUN_SIGN_PATCH="$GITHUB_WORKSPACE/patches/ksun-sign.patch"
+      #     if [ -f "$KSUN_SIGN_PATCH" ]; then
+      #       patch -p1 -F 3 < "$KSUN_SIGN_PATCH"
+      #       echo "✅ KernelSU-Next Sign patch applied"
+      #     else
+      #       echo "::warning::KernelSU-Next Sign patch not found at $KSUN_SIGN_PATCH — skipping"
+      #     fi
     
       - name: 🔧 Setup Patches (SUSFS)
         working-directory: kernel_workspace
