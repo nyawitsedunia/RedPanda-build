@@ -1,4 +1,4 @@
-name: Build RedPanda GKI Kernel v2
+name: Build Kernel (no feature)
 
 on:
   workflow_dispatch:
