@@ -11,10 +11,6 @@ on:
         description: 'Branch kernel'
         required: false
         default: 'main'
-      config_changes:
-        description: 'Baris CONFIG tambahan sebelum savedefconfig (opsional, satu per baris)'
-        required: false
-        default: ''
       output_name:
         description: 'Nama file hasil (mis: redpanda_defconfig)'
         required: false
@@ -65,40 +61,23 @@ jobs:
       - name: Download defconfig & regenerate
         env:
           DEFCONFIG_URL: "https://raw.githubusercontent.com/Artecxyz/${{ github.event.inputs.kernel_repo }}/main/arch/arm64/configs/gki_defconfig"
-          CONFIG_CHANGES: ${{ github.event.inputs.config_changes }}
         run: |
           export PATH="$GITHUB_WORKSPACE/toolchains/clang/bin:$PATH"
           MAKE="make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1"
 
           cd kernel_workspace
 
-          # Nama file diambil dari URL
           DEFCONFIG_NAME="$(basename "$DEFCONFIG_URL")"
           DEFCONFIG="arch/arm64/configs/${DEFCONFIG_NAME}"
 
-          # Unduh defconfig langsung dari link file
           curl -fLSs "$DEFCONFIG_URL" -o "$DEFCONFIG" || {
             echo "::error::Gagal mengunduh $DEFCONFIG_URL"
             exit 1
           }
 
-          # Muat defconfig ke .config (pakai clang yang sama agar opsi
-          # yang bergantung pada kompilator konsisten dengan build asli)
           $MAKE "$DEFCONFIG_NAME"
-
-          # Terapkan perubahan CONFIG tambahan (opsional)
-          if [ -n "$CONFIG_CHANGES" ]; then
-            printf '%s\n' "$CONFIG_CHANGES" >> out/.config
-            $MAKE olddefconfig
-          fi
-
-          # Simpan hasil sebagai full .config (semua opsi ditulis lengkap,
-          # termasuk yang nilainya sama dengan default kernel)
           OUTPUT_NAME="${{ github.event.inputs.output_name }}"
-
-          # Buang header "Automatically generated file..." sehingga file
-          # hasil langsung mulai dari section "# General setup"
-          sed -n '/^# General setup/,$p' out/.config > "out/${OUTPUT_NAME}"
+          grep -v '^#' out/.config | grep -v '^[[:space:]]*$' > "out/${OUTPUT_NAME}"
 
           echo "=== Info hasil regenerate ==="
           echo "Baris defconfig awal : $(wc -l < "$DEFCONFIG")"
