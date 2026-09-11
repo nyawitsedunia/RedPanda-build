@@ -71,6 +71,9 @@ jobs:
           echo "KERNEL_SUBLEVEL=$KERNEL_SUBLEVEL" >> $GITHUB_ENV
           echo "KERNEL_VER=$KERNEL_VERSION.$KERNEL_PATCHLEVEL" >> $GITHUB_ENV
           echo "KERNEL_FULL_VERSION=$KERNEL_VERSION.$KERNEL_PATCHLEVEL.$KERNEL_SUBLEVEL" >> $GITHUB_ENV
+          echo "KERNEL_COMMIT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "KERNEL_COMMIT_FULL=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "KERNEL_BRANCH=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_ENV
 
       - name: ⚙️ Configure CCache Directory
         run: |
@@ -366,10 +369,33 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
         run: |
-          ZIP_PATH=$(ls kernel_workspace/RedPanda-GKI-*.zip | head -n 1)
-          curl -F chat_id="$TELEGRAM_CHAT_ID" \
-               -F message_thread_id="$TELEGRAM_TOPIC_ID" \
-               -F document=@"$ZIP_PATH" \
-               -F caption="🚀 *Build Berhasil!* Berikut adalah file laporan terbaru dari repository ${{ github.repository }}." \
-               -F parse_mode="Markdown" \
-               https://telegram.org
+          BUILD_END=$(date +%s)
+          BUILD_MIN=$(( (BUILD_END - BUILD_START) / 60 ))
+          BUILD_SEC=$(( (BUILD_END - BUILD_START) % 60 ))
+
+          ZIP_PATH=$(ls kernel_workspace/RedPanda-GKI-*.zip 2>/dev/null | head -n 1)
+          if [ -z "$ZIP_PATH" ]; then
+            echo "⚠️ ZIP tidak ditemukan, skip upload."
+            exit 0
+          fi
+          echo "📦 File: $ZIP_PATH ($(du -h "$ZIP_PATH" | cut -f1))"
+
+          CAPTION="<b>🚀 RedPanda GKI Kernel Build Selesai!</b>
+
+          <b>📦 Variant:</b> ${{ github.event.inputs.kernelsu_variant }}
+          <b>🌐 Kernel:</b> ${{ env.KERNEL_FULL_VERSION }}
+          <b>🔧 Toolchain:</b> ${{ github.event.inputs.clang_choice }}
+          <b>🕒 Waktu Build:</b> ${BUILD_MIN} menit ${BUILD_SEC} detik
+          <b>🔑 Commit:</b> <code>${{ env.KERNEL_COMMIT }}</code>
+          <b>🌿 Branch:</b> ${{ env.KERNEL_BRANCH }}
+          <b>📂 Repo:</b> ${{ github.repository }}
+          <b>👤 Penulis:</b> ${{ github.actor }}"
+
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendDocument" \
+            -F chat_id="$TELEGRAM_CHAT_ID" \
+            -F message_thread_id="$TELEGRAM_TOPIC_ID" \
+            -F document="@$ZIP_PATH" \
+            -F caption="$CAPTION" \
+            -F parse_mode="HTML" \
+            -F disable_notification="true" \
+            --max-time 300 && echo "✅ Terkirim ke Telegram" || echo "❌ Gagal kirim Telegram"
