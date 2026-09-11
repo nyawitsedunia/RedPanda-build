@@ -17,11 +17,11 @@ on:
         type: choice
         options:
           - Neutron
-      zram:
-        description: "Upgrade LZ4 to the latest upstream"
+      lrng_enable:
+        description: 'Enable LRNG v59 (better entropy for crypto/gaming)'
         required: true
-        default: true
         type: boolean
+        default: false
       github_release:
         description: 'Create GitHub Release'
         required: false
@@ -194,27 +194,23 @@ jobs:
             echo "⚠️  SUS_MAP guard not found — patch may need adjustment"
           fi
 
-      - name: Configure ZRAM LZ4 + LZ4K/LZ4KD
-        if: ${{ github.event.inputs.zram == 'true' }}
-        working-directory: kernel_workspace
+      - name: Enable LRNG v59
+        if: inputs.lrng_enable
+        working-directory: kernel_workspace/common
         run: |
-          rm -f lib/lz4/lz4_compress.c lib/lz4/lz4_decompress.c lib/lz4/lz4defs.h lib/lz4/lz4hc_compress.c
-
-          cp -r $GITHUB_WORKSPACE/zram/lz4/lib/* ./lib/
-          cp -r $GITHUB_WORKSPACE/zram/lz4/include/linux/* ./include/linux/
-          bash $GITHUB_WORKSPACE/zram/apply_lz4_neon.sh
-
-          cp -r $GITHUB_WORKSPACE/zram/lz4k/lib/* ./lib/
-          cp -r $GITHUB_WORKSPACE/zram/lz4k/crypto/* ./crypto/
-          cp -r $GITHUB_WORKSPACE/zram/lz4k/include/linux/* ./include/linux/
-
-          LZ4KD_PATCH="$GITHUB_WORKSPACE/zram/lz4k/lz4kd.patch"
-          if [ -f "$LZ4KD_PATCH" ]; then
-            patch -p1 -F 3 < "$LZ4KD_PATCH" || true
-            echo "✅ LZ4KD patch applied"
-          else
-            echo "::warning::LZ4KD patch not found at $LZ4KD_PATCH — skipping"
-          fi
+          echo "Enabling LRNG v59..."
+          git clone --depth=1 https://github.com/smuellerDD/lrng.git /tmp/lrng_src
+          cp -r /tmp/lrng_src/drivers/char/lrng/* drivers/char/lrng/
+          cat >> arch/arm64/configs/redpanda_defconfig << 'EOF'
+          CONFIG_LRNG=y
+          CONFIG_LRNG_SHA256=y
+          CONFIG_LRNG_COLLECTION_SIZE=1024
+          CONFIG_LRNG_HEALTH_TESTS=y
+          CONFIG_LRNG_RCT_CUTOFF=31
+          CONFIG_LRNG_APT_CUTOFF=325
+          CONFIG_LRNG_IRQ=y
+          CONFIG_LRNG_CONTINUOUS_COMPRESSION_ENABLED=y
+          EOF
           
       - name: ⚙️ Configure Kernel Options
         working-directory: kernel_workspace
@@ -260,16 +256,6 @@ jobs:
           set_config CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG y
           set_config CONFIG_KSU_SUSFS_OPEN_REDIRECT y
           set_config CONFIG_KSU_SUSFS_SUS_MAP y
-          
-          if [ "${{ github.event.inputs.zram }}" = "true" ]; then
-            set_config CONFIG_ZSMALLOC y
-            set_config CONFIG_ZRAM y
-            set_config CONFIG_CRYPTO_LZ4HC y
-            set_config CONFIG_CRYPTO_LZ4K y
-            set_config CONFIG_CRYPTO_LZ4KD y
-            set_config CONFIG_ZRAM_WRITEBACK y
-            set_config CONFIG_ZRAM_MEMORY_TRACKING y
-          fi
           
           sed -i 's/check_defconfig//' "$KERNEL_ROOT/build.config.gki" 2>/dev/null || true
           echo "Kernel configs enabled in $KERNEL_DEFCONFIG"
