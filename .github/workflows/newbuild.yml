@@ -10,7 +10,6 @@ on:
         type: choice
         options:
           - ReSukiSU
-          - KernelSU-Next
       clang_choice:
         description: "Select Clang toolchain"
         required: true
