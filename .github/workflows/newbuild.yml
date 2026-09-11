@@ -191,6 +191,7 @@ jobs:
           fi
 
       - name: Add KernelSU-Next signature definitions
+        working-directory: kernel_workspace/KernelSU
         run: |
           KSUN_SIGN_PATCH="$GITHUB_WORKSPACE/patches/ksun-sign.patch"
           if [ -f "$KSUN_SIGN_PATCH" ]; then
