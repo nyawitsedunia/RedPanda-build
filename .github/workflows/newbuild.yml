@@ -258,7 +258,7 @@ jobs:
           if [[ "${{ github.event.inputs.lto_type }}" == "full" ]]; then
             sed -i '/^CONFIG_LTO_NONE=y/{ s/^/# /; s/=y$/ is not set/; }' "$DEFCONFIG"
             set_config CONFIG_LTO_CLANG_FULL y
-          else
+          elif [[ "${{ github.event.inputs.lto_type }}" == "thin" ]]; then
             sed -i '/^CONFIG_LTO_NONE=y/{ s/^/# /; s/=y$/ is not set/; }' "$DEFCONFIG"
             set_config CONFIG_LTO_CLANG_THIN y
           fi
