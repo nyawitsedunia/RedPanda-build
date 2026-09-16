@@ -1,3 +1,16 @@
+diff --git a/kernel/Kbuild b/kernel/Kbuild
+index a990e9b1..79976820 100644
+--- a/kernel/Kbuild
++++ b/kernel/Kbuild
+@@ -98,7 +98,7 @@ ccflags-y += -DKSU_VERSION=$(KSU_VERSION)
+ ccflags-y += -DKSU_VERSION_FULL=\"$(KSU_VERSION_FULL)\"
+ 
+ ifdef CONFIG_KSU_MULTI_MANAGER_SUPPORT
+-$(info -- Supported Unofficial Manager: MKSU, RKSU, KOWSU, SukiSU-Ultra, ReSukiSU )
++$(info -- Supported Unofficial Manager: MKSU, RKSU, KOWSU, SukiSU-Ultra, ReSukiSU, MamboSU, KernelSU-Next )
+ endif
+ 
+ KERNEL_VERSION := $(VERSION).$(PATCHLEVEL)
 diff --git a/kernel/manager/apk_sign.c b/kernel/manager/apk_sign.c
 index 8e52febf..bd688709 100644
 --- a/kernel/manager/apk_sign.c
