@@ -27,8 +27,13 @@ on:
           - 'none'
           - 'thin'
           - 'full'
-      lrng_enable:
-        description: 'Enable LRNG v59 (better entropy for crypto/gaming)'
+      # lrng_enable:
+      #   description: 'Enable LRNG v59 (better entropy for crypto/gaming)'
+      #   required: true
+      #   type: boolean
+      #   default: false
+      more_multi_manager:
+        description: 'Add more multi manager'
         required: true
         type: boolean
         default: false
@@ -191,16 +196,16 @@ jobs:
             exit 1
           fi
 
-      # - name: Add KernelSU-Next signature definitions
-      #   working-directory: kernel_workspace/KernelSU
-      #   run: |
-      #     KSUN_SIGN_PATCH="$GITHUB_WORKSPACE/patches/ksun-sign.patch"
-      #     if [ -f "$KSUN_SIGN_PATCH" ]; then
-      #       patch -p1 -F 3 < "$KSUN_SIGN_PATCH"
-      #       echo "✅ KernelSU-Next Sign patch applied"
-      #     else
-      #       echo "::warning::KernelSU-Next Sign patch not found at $KSUN_SIGN_PATCH — skipping"
-      #     fi
+      - name: Add More Multi Manager
+        working-directory: kernel_workspace/KernelSU
+        run: |
+          KSU_SIGN_PATCH="$GITHUB_WORKSPACE/patches/more_multi_manager.patch"
+          if [ -f "$KSU_SIGN_PATCH" ]; then
+            patch -p1 -F 3 < "$KSU_SIGN_PATCH"
+            echo "✅ More Multi Manager Sign patch applied"
+          else
+            echo "::warning::More Multi Manager patch not found at $KSU_SIGN_PATCH — skipping"
+          fi
     
       - name: 🔧 Setup Patches (SUSFS)
         working-directory: kernel_workspace
@@ -218,23 +223,23 @@ jobs:
             echo "⚠️  SUS_MAP guard not found — patch may need adjustment"
           fi
           
-      - name: Enable LRNG v59
-        if: inputs.lrng_enable
-        working-directory: kernel_workspace
-        run: |
-          echo "Enabling LRNG v59..."
-          git clone --depth=1 https://github.com/smuellerDD/lrng.git /tmp/lrng_src
-          cp -r /tmp/lrng_src/drivers/char/lrng/* drivers/char/lrng/
-          cat >> arch/arm64/configs/$KERNEL_DEFCONFIG << 'EOF'
-          CONFIG_LRNG=y
-          CONFIG_LRNG_SHA256=y
-          CONFIG_LRNG_COLLECTION_SIZE=1024
-          CONFIG_LRNG_HEALTH_TESTS=y
-          CONFIG_LRNG_RCT_CUTOFF=31
-          CONFIG_LRNG_APT_CUTOFF=325
-          CONFIG_LRNG_IRQ=y
-          CONFIG_LRNG_CONTINUOUS_COMPRESSION_ENABLED=y
-          EOF
+      # - name: Enable LRNG v59
+      #   if: inputs.lrng_enable
+      #   working-directory: kernel_workspace
+      #   run: |
+      #     echo "Enabling LRNG v59..."
+      #     git clone --depth=1 https://github.com/smuellerDD/lrng.git /tmp/lrng_src
+      #     cp -r /tmp/lrng_src/drivers/char/lrng/* drivers/char/lrng/
+      #     cat >> arch/arm64/configs/$KERNEL_DEFCONFIG << 'EOF'
+      #     CONFIG_LRNG=y
+      #     CONFIG_LRNG_SHA256=y
+      #     CONFIG_LRNG_COLLECTION_SIZE=1024
+      #     CONFIG_LRNG_HEALTH_TESTS=y
+      #     CONFIG_LRNG_RCT_CUTOFF=31
+      #     CONFIG_LRNG_APT_CUTOFF=325
+      #     CONFIG_LRNG_IRQ=y
+      #     CONFIG_LRNG_CONTINUOUS_COMPRESSION_ENABLED=y
+      #     EOF
           
       - name: ⚙️ Configure Kernel Options
         working-directory: kernel_workspace
