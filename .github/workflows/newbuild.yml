@@ -27,16 +27,16 @@ on:
           - 'none'
           - 'thin'
           - 'full'
-      # lrng_enable:
-      #   description: 'Enable LRNG v59 (better entropy for crypto/gaming)'
-      #   required: true
-      #   type: boolean
-      #   default: false
-      more_multi_manager:
-        description: 'Add more multi manager'
+      lrng_enable:
+        description: 'Enable LRNG v60 (better entropy for crypto/gaming)'
         required: true
         type: boolean
         default: false
+      more_multi_manager:
+        description: 'Add more multi manager (MamboSU)'
+        required: true
+        type: boolean
+        default: true
       github_release:
         description: 'Create GitHub Release'
         required: false
@@ -197,6 +197,7 @@ jobs:
           fi
 
       - name: Add More Multi Manager
+        if: github.event.inputs.more_multi_manager == 'true' && github.event.inputs.kernelsu_variant == 'ReSukiSU'
         working-directory: kernel_workspace/KernelSU
         run: |
           KSU_SIGN_PATCH="$GITHUB_WORKSPACE/patches/more_multi_manager.patch"
@@ -223,23 +224,21 @@ jobs:
             echo "⚠️  SUS_MAP guard not found — patch may need adjustment"
           fi
           
-      # - name: Enable LRNG v59
-      #   if: inputs.lrng_enable
-      #   working-directory: kernel_workspace
-      #   run: |
-      #     echo "Enabling LRNG v59..."
-      #     git clone --depth=1 https://github.com/smuellerDD/lrng.git /tmp/lrng_src
-      #     cp -r /tmp/lrng_src/drivers/char/lrng/* drivers/char/lrng/
-      #     cat >> arch/arm64/configs/$KERNEL_DEFCONFIG << 'EOF'
-      #     CONFIG_LRNG=y
-      #     CONFIG_LRNG_SHA256=y
-      #     CONFIG_LRNG_COLLECTION_SIZE=1024
-      #     CONFIG_LRNG_HEALTH_TESTS=y
-      #     CONFIG_LRNG_RCT_CUTOFF=31
-      #     CONFIG_LRNG_APT_CUTOFF=325
-      #     CONFIG_LRNG_IRQ=y
-      #     CONFIG_LRNG_CONTINUOUS_COMPRESSION_ENABLED=y
-      #     EOF
+      - name: Enable LRNG v60
+        if: inputs.lrng_enable
+        working-directory: kernel_workspace
+        run: |
+          
+          patch -p1 --forward --no-backup-if-mismatch < $GITHUB_WORKSPACE/patches/lrng_v60_android15-6.6.patch
+          cat >> arch/arm64/configs/$KERNEL_DEFCONFIG << 'EOF'
+          CONFIG_RANDOM_DEFAULT_IMPL=n
+          CONFIG_LRNG=y
+          CONFIG_LRNG_COLLECTION_SIZE_1024=y
+          CONFIG_LRNG_HEALTH_TESTS=y
+          CONFIG_LRNG_IRQ=y
+          CONFIG_LRNG_CONTINUOUS_COMPRESSION_ENABLED=y
+          EOF
+          echo "✅ LRNG v60 enabled"
           
       - name: ⚙️ Configure Kernel Options
         working-directory: kernel_workspace
@@ -394,39 +393,40 @@ jobs:
           path: ${{ env.LDCACHE_DIR }}
           key: thinlto-cache-${{ runner.os }}-${{ env.KERNEL_FULL_VERSION }}
 
-      - name: Kirim File dan Teks ke Topik Telegram
+      - name: Send a notification to the Telegram community group.
         env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+          MESSAGE_THREAD_ID: ${{secrets.MESSAGE_THREAD_ID}}
         run: |
+          set -euo pipefail
+
           BUILD_END=$(date +%s)
           BUILD_MIN=$(( (BUILD_END - BUILD_START) / 60 ))
           BUILD_SEC=$(( (BUILD_END - BUILD_START) % 60 ))
 
+          TEXT=$(cat <<EOF
+          <b>Kernel Build Successful!</b>
+
+          <b>👤 Author:</b> @Artecxyz
+          <b>📆 Build Time:</b> $(date +%H:%M:%S - %d/%m/%Y)
+          <b>🕒 Build Speed:</b> ${BUILD_MIN} minutes ${BUILD_SEC} second
+          <b>📦 Variant:</b> ${{ github.event.inputs.kernelsu_variant }}
+          <b>🌐 Kernel version:</b> ${{ env.KERNEL_FULL_VERSION }}
+          <b>🔧 Toolchain:</b> ${{ github.event.inputs.clang_choice }} Clang
+          EOF
+          )
+
           ZIP_PATH=$(ls kernel_workspace/RedPanda-GKI-*.zip 2>/dev/null | head -n 1)
           if [ -z "$ZIP_PATH" ]; then
-            echo "⚠️ ZIP tidak ditemukan, skip upload."
+            echo "⚠️ ZIP not found, skipping upload."
             exit 0
           fi
           echo "📦 File: $ZIP_PATH ($(du -h "$ZIP_PATH" | cut -f1))"
-
-          CAPTION="<b>🚀 RedPanda GKI Kernel Build Selesai!</b>
-
-          <b>📦 Variant:</b> ${{ github.event.inputs.kernelsu_variant }}
-          <b>🌐 Kernel:</b> ${{ env.KERNEL_FULL_VERSION }}
-          <b>🔧 Toolchain:</b> ${{ github.event.inputs.clang_choice }}
-          <b>🕒 Waktu Build:</b> ${BUILD_MIN} menit ${BUILD_SEC} detik
-          <b>🔑 Commit:</b> <code>${{ env.KERNEL_COMMIT }}</code>
-          <b>🌿 Branch:</b> ${{ env.KERNEL_BRANCH }}
-          <b>📂 Repo:</b> ${{ github.repository }}
-          <b>👤 Penulis:</b> ${{ github.actor }}"
-
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendDocument" \
-            -F chat_id="$TELEGRAM_CHAT_ID" \
-            -F message_thread_id="$TELEGRAM_TOPIC_ID" \
+          
+          curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendDocument" \
+            -F chat_id="$CHAT_ID" \
+            -F message_thread_id="$MESSAGE_THREAD_ID" \
             -F document="@$ZIP_PATH" \
-            -F caption="$CAPTION" \
-            -F parse_mode="HTML" \
-            -F disable_notification="true" \
-            --max-time 300 && echo "✅ Terkirim ke Telegram" || echo "❌ Gagal kirim Telegram"
+            -F caption="$TEXT" \
+            -F parse_mode="HTML"
