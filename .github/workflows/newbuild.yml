@@ -66,6 +66,9 @@ jobs:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v7
 
+      - name: Record build start
+        run: echo "BUILD_START=$(date +%s)" >> $GITHUB_ENV
+        
       - name: 🧠 Add swap space (for LTO link)
         run: |
           sudo fallocate -l 16G /mnt/swap_lto || sudo dd if=/dev/zero of=/mnt/swap_lto bs=1M count=16384
@@ -400,7 +403,7 @@ jobs:
           MESSAGE_THREAD_ID: ${{secrets.MESSAGE_THREAD_ID}}
         run: |
           set -euo pipefail
-
+          
           BUILD_END=$(date +%s)
           BUILD_MIN=$(( (BUILD_END - BUILD_START) / 60 ))
           BUILD_SEC=$(( (BUILD_END - BUILD_START) % 60 ))
@@ -409,7 +412,7 @@ jobs:
           <b>Kernel Build Successful!</b>
 
           <b>👤 Author:</b> @Artecxyz
-          <b>📆 Build Time:</b> $(date +%H:%M:%S - %d/%m/%Y)
+          <b>📆 Build Time:</b> $(date "+%H:%M:%S - %d/%m/%Y")
           <b>🕒 Build Speed:</b> ${BUILD_MIN} minutes ${BUILD_SEC} second
           <b>📦 Variant:</b> ${{ github.event.inputs.kernelsu_variant }}
           <b>🌐 Kernel version:</b> ${{ env.KERNEL_FULL_VERSION }}
