@@ -456,8 +456,8 @@ jobs:
           fi
           echo "📦 File: $ZIP_PATH ($(du -h "$ZIP_PATH" | cut -f1))"
           
-          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument" \
-            -F chat_id="${CHAT_ID{" \
+          curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendDocument" \
+            -F chat_id="$CHAT_ID" \
             -F message_thread_id="$MESSAGE_THREAD_ID" \
             -F document="@$ZIP_PATH" \
             -F caption="$TEXT" \
