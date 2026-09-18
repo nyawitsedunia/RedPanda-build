@@ -11,6 +11,7 @@ on:
         options:
           - ReSukiSU
           - KernelSU-Next
+          - SukiSU-Ultra
       clang_choice:
         description: "Select Clang toolchain"
         required: true
@@ -32,8 +33,8 @@ on:
         required: true
         type: boolean
         default: false
-      more_multi_manager:
-        description: 'Add more multi manager (MamboSU)'
+      wakelock_blocker:
+        description: 'Enable Wakelock Blocker (better idle battery drain)'
         required: true
         type: boolean
         default: true
@@ -178,37 +179,37 @@ jobs:
         working-directory: kernel_workspace
         run: |
           if [ "${{ github.event.inputs.kernelsu_variant }}" = "ReSukiSU" ]; then
-            echo "🛠️ Setting up ReSukiSU..."
+            echo "🛠️ Setting up ReSukiSU (main branch)..."
             curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s main
             cd KernelSU
             KSU_VERSION=$(expr $(git rev-list --count HEAD) + 30700 2>/dev/null || echo 114514)
             echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-            echo "ksuver=$KSU_VERSION" >> $GITHUB_OUTPUT
             echo "✅ ReSukiSU $(git rev-parse --short HEAD) (ver $KSU_VERSION)"
 
+            MM_PATCH="$GITHUB_WORKSPACE/patches/more_multi_manager.patch"
+            if [ -f "$MM_PATCH" ]; then
+              patch -p1 -F 3 < "$MM_PATCH"
+              echo "✅ Add MamboSU in Multi-Manager List"
+            else
+              echo "::warning::File Patch not found at $MM_PATCH — skipping"
+            fi
           elif [ "${{ github.event.inputs.kernelsu_variant }}" = "KernelSU-Next" ]; then
-            echo "🛠️ Setting up KernelSU-Next..."
-            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/stable/kernel/setup.sh" | bash -s stable
+            echo "🛠️ Setting up KernelSU-Next (dev branch)..."
+            curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/dev/kernel/setup.sh" | bash -s dev
             cd KernelSU-Next
             KSU_VERSION=$(expr $(git rev-list --count HEAD) + 10200)
             echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-            echo "ksuver=$KSU_VERSION" >> $GITHUB_OUTPUT
-            echo "✅ KernelSU-Next $(git rev-parse --short HEAD) (ver $KSU_VERSION)"
+            echo "✅ KernelSU-Next $(git describe --tags 2>/dev/null || git rev-parse --short HEAD) (ver $KSU_VERSION)"
+          elif [ "${{ github.event.inputs.kernelsu_variant }}" = "SukiSU-Ultra" ]; then
+            echo "🛠️ Setting up SukiSU-Ultra (builtin branch)..."
+            curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/builtin/kernel/setup.sh" | bash -s builtin
+            cd KernelSU
+            KSU_VERSION=$(expr $(git rev-list --count HEAD) + 37185)
+            echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+            echo "✅ SukiSU-Ultra $(git rev-parse --short HEAD) (ver $KSU_VERSION)"
           else
             echo "❌ Unrecognized variant: ${{ github.event.inputs.kernelsu_variant }}"
             exit 1
-          fi
-
-      - name: Add More Multi Manager
-        if: github.event.inputs.more_multi_manager == 'true' && github.event.inputs.kernelsu_variant == 'ReSukiSU'
-        working-directory: kernel_workspace/KernelSU
-        run: |
-          KSU_SIGN_PATCH="$GITHUB_WORKSPACE/patches/more_multi_manager.patch"
-          if [ -f "$KSU_SIGN_PATCH" ]; then
-            patch -p1 -F 3 < "$KSU_SIGN_PATCH"
-            echo "✅ More Multi Manager Sign patch applied"
-          else
-            echo "::warning::More Multi Manager patch not found at $KSU_SIGN_PATCH — skipping"
           fi
     
       - name: 🔧 Setup Patches (SUSFS)
@@ -231,7 +232,6 @@ jobs:
         if: inputs.lrng_enable
         working-directory: kernel_workspace
         run: |
-          
           patch -p1 --forward --no-backup-if-mismatch < $GITHUB_WORKSPACE/patches/lrng_v60_android15-6.6.patch
           cat >> arch/arm64/configs/$KERNEL_DEFCONFIG << 'EOF'
           CONFIG_RANDOM_DEFAULT_IMPL=n
@@ -242,6 +242,16 @@ jobs:
           CONFIG_LRNG_CONTINUOUS_COMPRESSION_ENABLED=y
           EOF
           echo "✅ LRNG v60 enabled"
+
+      - name: Enable Wakelock Blocker
+        if: inputs.wakelock_blocker
+        working-directory: kernel_workspace
+        run: |
+          cat >> arch/arm64/configs/redpanda_defconfig << 'EOF'
+          CONFIG_PM_WAKELOCKS=y
+          CONFIG_PM_WAKELOCKS_GC=y
+          CONFIG_PM_WAKELOCKS_LIMIT=100
+          EOF
           
       - name: ⚙️ Configure Kernel Options
         working-directory: kernel_workspace
@@ -270,6 +280,14 @@ jobs:
           set_config CONFIG_KSU y
           set_config CONFIG_KALLSYMS y
           set_config CONFIG_KALLSYMS_ALL y
+          case "${{ github.event.inputs.kernelsu_variant }}" in
+            "SukiSU-Ultra")
+              set_config CONFIG_KSU_MANUAL_HOOK y
+              ;;
+            "KernelSU-Next")
+              set_config CONFIG_EXT4_FS y
+              ;;
+          esac
           
           set_config CONFIG_HEADERS_INSTALL n
           set_config CONFIG_LD_DEAD_CODE_DATA_ELIMINATION y
@@ -292,6 +310,20 @@ jobs:
           set_config CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG y
           set_config CONFIG_KSU_SUSFS_OPEN_REDIRECT y
           set_config CONFIG_KSU_SUSFS_SUS_MAP y
+          case "${{ github.event.inputs.kernelsu_variant }}" in
+            "SukiSU-Ultra")
+              set_config CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT y
+              set_config CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT y
+              set_config CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT y
+              set_config CONFIG_KSU_SUSFS_TRY_UMOUNT y
+              set_config CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT y
+              set_config CONFIG_KSU_SUSFS_SUS_OVERLAYFS n
+              set_config CONFIG_KSU_SUSFS_SUS_SU n
+              ;;
+            "KernelSU-Next")
+              set_config CONFIG_KSU_SUSFS_TRY_UMOUNT y
+              ;;
+          esac
           
           sed -i 's/check_defconfig//' "$KERNEL_ROOT/build.config.gki" 2>/dev/null || true
           echo "Kernel configs enabled in $KERNEL_DEFCONFIG"
@@ -408,17 +440,14 @@ jobs:
           BUILD_MIN=$(( (BUILD_END - BUILD_START) / 60 ))
           BUILD_SEC=$(( (BUILD_END - BUILD_START) % 60 ))
 
-          TEXT=$(cat <<EOF
-          <b>Kernel Build Successful!</b>
+          TEXT="<b>Kernel Build Successful!</b>
 
           <b>👤 Author:</b> @Artecxyz
           <b>📆 Build Time:</b> $(date "+%H:%M:%S - %d/%m/%Y")
           <b>🕒 Build Speed:</b> ${BUILD_MIN} minutes ${BUILD_SEC} second
           <b>📦 Variant:</b> ${{ github.event.inputs.kernelsu_variant }}
           <b>🌐 Kernel version:</b> ${{ env.KERNEL_FULL_VERSION }}
-          <b>🔧 Toolchain:</b> ${{ github.event.inputs.clang_choice }} Clang
-          EOF
-          )
+          <b>🔧 Toolchain:</b> ${{ github.event.inputs.clang_choice }} Clang"
 
           ZIP_PATH=$(ls kernel_workspace/RedPanda-GKI-*.zip 2>/dev/null | head -n 1)
           if [ -z "$ZIP_PATH" ]; then
@@ -427,8 +456,8 @@ jobs:
           fi
           echo "📦 File: $ZIP_PATH ($(du -h "$ZIP_PATH" | cut -f1))"
           
-          curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendDocument" \
-            -F chat_id="$CHAT_ID" \
+          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument" \
+            -F chat_id="${CHAT_ID{" \
             -F message_thread_id="$MESSAGE_THREAD_ID" \
             -F document="@$ZIP_PATH" \
             -F caption="$TEXT" \
