@@ -1,0 +1,103 @@
+name: Test Send Telegram
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernelsu_variant:
+        description: "KernelSU Variant (contoh: ReSukiSU)"
+        required: false
+        default: "ReSukiSU"
+      clang_choice:
+        description: "Clang choice (contoh: AOSP)"
+        required: false
+        default: "AOSP"
+
+jobs:
+  test-telegram:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare dummy ZIP & env
+        run: |
+          set -euo pipefail
+          # Simulasi env dari workflow build
+          echo "KERNEL_FULL_VERSION=4.14.999-test" >> "$GITHUB_ENV"
+          echo "BUILD_START=$(date +%s)" >> "$GITHUB_ENV"
+
+          # Buat dummy ZIP untuk ditest (kalau tidak ada file asli)
+          mkdir -p kernel_workspace
+          if ! ls kernel_workspace/RedPanda-GKI-*.zip >/dev/null 2>&1; then
+            echo "Dummy file untuk test telegram upload" > dummy.txt
+            zip -q kernel_workspace/RedPanda-GKI-ReSukiSU-test-$(date +%Y%m%d-%H%M).zip dummy.txt
+          fi
+          ls -lh kernel_workspace/
+
+      - name: Send a notification to the Telegram community group.
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+          MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
+          KERNELSU_VARIANT: ${{ github.event.inputs.kernelsu_variant }}
+          CLANG_CHOICE: ${{ github.event.inputs.clang_choice }}
+        run: |
+          set -euo pipefail
+
+          # Validasi secrets
+          if [ -z "${BOT_TOKEN:-}" ] || [ -z "${CHAT_ID:-}" ]; then
+            echo "::error::BOT_TOKEN atau CHAT_ID kosong. Cek repository secrets."
+            exit 1
+          fi
+
+          BUILD_END=$(date +%s)
+          BUILD_START="${BUILD_START:-$BUILD_END}"
+          BUILD_MIN=$(( (BUILD_END - BUILD_START) / 60 ))
+          BUILD_SEC=$(( (BUILD_END - BUILD_START) % 60 ))
+
+          # Tulis caption ke file agar aman dari karakter khusus & multiline
+          cat > /tmp/tg_caption.html <<EOF
+          <b>Kernel Build Successful!</b>
+
+          <b>👤 Author:</b> @Artecxyz
+          <b>📆 Build Time:</b> $(date "+%H:%M:%S - %d/%m/%Y")
+          <b>🕒 Build Speed:</b> ${BUILD_MIN} minutes ${BUILD_SEC} second
+          <b>📦 Variant:</b> ${KERNELSU_VARIANT}
+          <b>🌐 Kernel version:</b> ${KERNEL_FULL_VERSION}
+          <b>🔧 Toolchain:</b> ${CLANG_CHOICE} Clang
+          EOF
+
+          ZIP_PATH=$(ls kernel_workspace/RedPanda-GKI-*.zip 2>/dev/null | head -n 1 || true)
+          if [ -z "${ZIP_PATH:-}" ]; then
+            echo "⚠️ ZIP not found, skipping upload."
+            exit 0
+          fi
+          echo "📦 File: $ZIP_PATH ($(du -h "$ZIP_PATH" | cut -f1))"
+
+          # Susun argumen curl (message_thread_id hanya jika ada)
+          CURL_ARGS=(
+            -sS
+            -o /tmp/tg_resp.json
+            -w "%{http_code}"
+            --fail-with-body
+            -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
+            -F "chat_id=${CHAT_ID}"
+            -F "document=@${ZIP_PATH}"
+            -F "caption=</tmp/tg_caption.html"
+            -F "parse_mode=HTML"
+          )
+          if [ -n "${MESSAGE_THREAD_ID:-}" ]; then
+            CURL_ARGS+=( -F "message_thread_id=${MESSAGE_THREAD_ID}" )
+          fi
+
+          HTTP_CODE=$(curl "${CURL_ARGS[@]}") || {
+            echo "::error::curl gagal. HTTP=$HTTP_CODE"
+            echo "----- Response -----"
+            cat /tmp/tg_resp.json || true
+            echo "--------------------"
+            exit 1
+          }
+
+          echo "Telegram HTTP=$HTTP_CODE"
+          cat /tmp/tg_resp.json
