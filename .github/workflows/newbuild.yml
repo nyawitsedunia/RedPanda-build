@@ -333,7 +333,6 @@ jobs:
         run: |
           export MAP="-fdebug-prefix-map=${GITHUB_WORKSPACE}=. -fmacro-prefix-map=${GITHUB_WORKSPACE}=. -ffile-prefix-map=${GITHUB_WORKSPACE}=."
           export PATH="$GITHUB_WORKSPACE/toolchains/clang/bin:$PATH"
-          export KBUILD_COMPILER_STRING="$($GITHUB_WORKSPACE/toolchains/clang/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')"
           export KBUILD_BUILD_USER=$KBUILD_BUILD_USER
           export KBUILD_BUILD_HOST=$KBUILD_BUILD_HOST
 
